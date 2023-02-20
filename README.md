@@ -1,8 +1,13 @@
 # airflow-docker
 
+# Pip Version
+alias pip=pip3.9
+alias pip3=pip3.9
+
 # Python Version
 python 3.9.16
-
+alias python=python3.9
+alias python3=python3.9
 # Create VENV 
 python3 -m venv /Users/luis.takahashi/Desktop/Tools/Git/airflow-docker
 
