@@ -127,3 +127,9 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# Folder to ignore
+.aws/
+logs/
+test/
+plugins/

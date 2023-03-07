@@ -1,57 +1,61 @@
+
 import json
-import pendulum
+from datetime import datetime, timedelta
 from airflow.models.dag import DAG
 from airflow.models import Variable
 from airflow.utils.task_group import TaskGroup
 from airflow.operators.empty import EmptyOperator
 from airflow.providers.amazon.aws.operators.aws_lambda import AwsLambdaInvokeFunctionOperator
 
-DAG_NAME = "dag_invoke_lambda"
+
+default_args = {
+    'owner': 'youse',
+    'depends_on_past': False,
+    'email': ['no-reply@youse.com.br'],
+    'email_on_failure': False,
+    'email_on_retry': False,
+    'provide_context': True
+}
+
 with DAG(
-    DAG_NAME,
-    schedule="*/30 * * * *",
-    default_args={"depends_on_past": False},
-    start_date=pendulum.datetime(2021, 1, 1, tz="UTC"),
+    "dag_invoke_lambda_zendesk",
+    description='Run built-in Zendesk Ingestion on Amazon Lambda',
+    schedule=Variable.get('CRON_START_YOUSE_LAMBDA_ZENDESK', None),
+    default_args=default_args,
+    start_date=datetime.today() - timedelta(days=int(Variable.get('START_DATE_DAYS_AGO', 2))),
     catchup=False,
+    tags=['1-DATALAKE', '2-INGESTOR', '3-LAMBDA'],
 ) as dag:
     
     run_start = EmptyOperator(task_id="Start")
 
-    api_function = Variable.get("api_function")
-    api_key = Variable.get("api_key")
-    EVENT_1 = json.dumps({"symbol": "MXRF11.SAO", "function": api_function, "apikey": api_key})
-    LAMBDA_FUNCTION_NAME_1 = "lambdas-production-ApiStockFunction-r27CdJJ28E99"
-    
-
-    sheet_id = '1Cqpt01ciDVWYXhOH6VhWvL1G4HYtx4Z_crxcDnIDzx8'
-    sheet_name = 'RENDA_VARIAVEL'
-    EVENT_2 = json.dumps({"SHEET_ID": sheet_id, "SHEET_NAME": sheet_name})
-    LAMBDA_FUNCTION_NAME_2 = "lambdas-production-GsheetFunction-KwAqjFCDXraF"
+    LAMBDA_FUNCTION_NAME_1 = Variable.get('LAMBDA_ZENDESK_TICKET', '')
+    LAMBDA_FUNCTION_NAME_2 = Variable.get('LAMBDA_ZENDESK_CHAT', '')
+    LAMBDA_FUNCTION_NAME_3 = Variable.get('LAMBDA_ZENDESK_USER', '')
 
     # Start task group definition
-    with TaskGroup(group_id='group1') as tg1:
+    with TaskGroup(group_id='pre-processing') as tg1:
 
         lambda_1 = AwsLambdaInvokeFunctionOperator(
-            task_id='invoke_lambda_function_api_stock',
+            task_id='invoke_lambda_zendesk_ticket',
             function_name=LAMBDA_FUNCTION_NAME_1,
-            invocation_type="Event",
-            payload=EVENT_1,
-            aws_conn_id="aws_conn_id"
+            aws_conn_id=Variable.get('aws_conn_id', None)
         )
 
         lambda_2 = AwsLambdaInvokeFunctionOperator(
-            task_id='invoke_lambda_function_gsheet',
+            task_id='invoke_lambda_zendesk_chat',
             function_name=LAMBDA_FUNCTION_NAME_2,
-            invocation_type="Event",
-            payload=EVENT_2,
-            aws_conn_id="aws_conn_id"
+            aws_conn_id=Variable.get('aws_conn_id', None)
         )
 
-        [lambda_1, lambda_2]
+        lambda_3 = AwsLambdaInvokeFunctionOperator(
+            task_id='invoke_lambda_zendesk_user',
+            function_name=LAMBDA_FUNCTION_NAME_3,
+            aws_conn_id=Variable.get('aws_conn_id', None)
+        )
 
-    run_end = EmptyOperator(task_id="End", dag=dag)
+        [lambda_1, lambda_2, lambda_3]
+
+    run_end = EmptyOperator(task_id="End")
 
     run_start >> tg1 >> run_end
-
-
-

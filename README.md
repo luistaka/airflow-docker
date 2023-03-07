@@ -29,7 +29,7 @@ deactivate
 
 # Building Docker images
 docker build -t my-airflow-image .
-docker build . -f Dockerfile --pull --tag projeto-aplicado-airflow-image:0.0.1
+docker build . -f Dockerfile --pull --tag projeto-aplicado-airflow-image:0.0.2
 
 # Test Image
 <!-- ./scripts/ci/tools/verify_docker_image.sh PROD my-airflow-image:0.0.1 -->
@@ -70,3 +70,11 @@ docker-compose down --volumes --rmi all
 
 # Remove all exited containers
 docker rm $(docker ps -a -q -f status=exited)
+
+# Stop Docker
+docker stop $(docker ps -a -q)
+
+# Remove Containers
+docker rm $(docker ps -a -q)
+
+
